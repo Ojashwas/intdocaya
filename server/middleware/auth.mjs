@@ -95,8 +95,8 @@ export function authorize(actor, capability, resource = {}) {
 export async function issueDevelopmentToken(config, claims = {}) {
   if (config.authMode !== 'development') throw new HttpError(404, 'NOT_FOUND', 'Route not found.')
   return new SignJWT({
-    name: 'Khalid Al Mansoori',
-    preferred_username: 'k.mansoori@moi.gov.ae',
+    name: 'Development User',
+    preferred_username: 'developer@localhost',
     tid: 'local-tenant',
     roles: ['org-admin'],
     ...claims,

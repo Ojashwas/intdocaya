@@ -52,6 +52,23 @@ export function createDocayaServer({ config, repository, search = null, cache = 
   const authenticate = createAuthenticator(config)
   const uploads = new UploadService(config, repository)
   const staticRoot = resolve('dist')
+  const checkDependency = async (dependency) => {
+    if (!dependency) return { status: 'disabled' }
+    let timer
+    try {
+      const result = await Promise.race([
+        dependency.healthCheck(),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error('Readiness check timed out.')), config.readinessTimeoutMs)
+        }),
+      ])
+      return result && typeof result === 'object' ? result : { status: 'ok' }
+    } catch (error) {
+      return { status: 'error', error: error instanceof Error ? error.message : String(error) }
+    } finally {
+      clearTimeout(timer)
+    }
+  }
 
   const handler = async (req, res) => {
     try {
@@ -61,8 +78,22 @@ export function createDocayaServer({ config, repository, search = null, cache = 
       const route = url.pathname
       if (req.method === 'GET' && route === '/health/live')
         return sendJson(res, 200, { status: 'ok', timestamp: new Date().toISOString() })
-      if (req.method === 'GET' && route === '/health/ready')
-        return sendJson(res, 200, { status: 'ready', timestamp: new Date().toISOString() })
+      if (req.method === 'GET' && route === '/health/ready') {
+        const checks = Object.fromEntries(
+          await Promise.all([
+            checkDependency(repository).then((result) => ['database', result]),
+            checkDependency(search).then((result) => ['search', result]),
+            checkDependency(cache).then((result) => ['cache', result]),
+            checkDependency(events).then((result) => ['events', result]),
+          ]),
+        )
+        const ready = Object.values(checks).every((check) => check.status === 'ok' || check.status === 'disabled')
+        return sendJson(res, ready ? 200 : 503, {
+          status: ready ? 'ready' : 'not_ready',
+          timestamp: new Date().toISOString(),
+          checks,
+        })
+      }
       if (req.method === 'POST' && route === '/api/v1/auth/development-token')
         return sendJson(res, 200, {
           accessToken: await issueDevelopmentToken(config),

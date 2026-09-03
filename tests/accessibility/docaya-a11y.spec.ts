@@ -13,7 +13,7 @@ test('sign-in and authenticated home have no automatically detectable serious vi
   expectSeriousViolationsToBeEmpty(signIn.violations)
 
   await page.getByRole('button', { name: /continue with organizational sso/i }).click()
-  await expect(page.getByRole('heading', { name: /welcome, khalid/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /welcome,/i })).toBeVisible()
   const home = await new AxeBuilder({ page }).analyze()
   expectSeriousViolationsToBeEmpty(home.violations)
 })

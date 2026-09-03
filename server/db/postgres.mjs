@@ -54,6 +54,10 @@ export class PostgresRepository {
   async close() {
     await this.pool.end()
   }
+  async healthCheck() {
+    await this.pool.query('SELECT 1')
+    return true
+  }
   async tenant(actor, work) {
     const client = await this.pool.connect()
     try {

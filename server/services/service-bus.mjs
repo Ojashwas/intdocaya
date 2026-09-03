@@ -9,13 +9,29 @@ export class ServiceBusRestPublisher {
     this.credential = new DefaultAzureCredential()
   }
 
-  async publish(event) {
+  async token() {
     const token = await this.credential.getToken('https://servicebus.azure.net/.default')
+    if (!token?.token) throw new Error('Service Bus authentication did not return an access token.')
+    return token
+  }
+
+  async publish(event) {
+    const token = await this.token()
     const response = await fetch(`https://${this.namespace}/${encodeURIComponent(this.topic)}/messages`, {
       method: 'POST',
       headers: { authorization: `Bearer ${token.token}`, 'content-type': 'application/json' },
       body: JSON.stringify({ body: event, contentType: 'application/json' }),
     })
     if (!response.ok) throw new Error(`Service Bus returned HTTP ${response.status}.`)
+  }
+
+  async healthCheck() {
+    const token = await this.token()
+    const response = await fetch(
+      `https://${this.namespace}/${encodeURIComponent(this.topic)}?api-version=2014-01`,
+      { headers: { authorization: `Bearer ${token.token}` } },
+    )
+    if (!response.ok) throw new Error(`Service Bus returned HTTP ${response.status}.`)
+    return { status: 'ok', provider: 'service-bus' }
   }
 }

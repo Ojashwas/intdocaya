@@ -23,4 +23,10 @@ export class RedisCacheAdapter {
   async set(key, value, ttlSeconds = 60) {
     return this.command(['SET', key, value, 'EX', String(ttlSeconds)])
   }
+
+  async healthCheck() {
+    const result = await this.command(['PING'])
+    if (result?.result !== 'PONG' && result?.[1] !== 'PONG') throw new Error('Redis did not respond to PING.')
+    return true
+  }
 }

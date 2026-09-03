@@ -29,6 +29,8 @@ export function loadConfig(overrides = {}) {
       overrides.corsOrigins ||
       csv(process.env.CORS_ALLOWED_ORIGINS || (development ? 'http://localhost:5173' : '')),
     bodyLimit: overrides.bodyLimit || integer('REQUEST_BODY_LIMIT_BYTES', 1_048_576),
+    rateLimit: overrides.rateLimit || integer('RATE_LIMIT_REQUESTS_PER_MINUTE', 120),
+    readinessTimeoutMs: overrides.readinessTimeoutMs || integer('READINESS_TIMEOUT_MS', 2_000),
     uploadMaxBytes: overrides.uploadMaxBytes || integer('UPLOAD_MAX_BYTES', 104_857_600),
     uploadExtensions:
       overrides.uploadExtensions ||

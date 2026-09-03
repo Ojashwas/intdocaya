@@ -2,15 +2,21 @@ import crypto from 'node:crypto'
 import { HttpError } from './errors.mjs'
 
 const buckets = new Map()
+const RATE_LIMIT = 120
 
 export function prepareRequest(req, res, config) {
-  const requestId = String(req.headers['x-request-id'] || `req_${crypto.randomUUID()}`).slice(0, 100)
+  const suppliedRequestId = String(req.headers['x-request-id'] || '')
+  const requestId = /^[A-Za-z0-9._-]{1,100}$/.test(suppliedRequestId)
+    ? suppliedRequestId
+    : `req_${crypto.randomUUID()}`
   req.requestId = requestId
   res.setHeader('x-request-id', requestId)
   res.setHeader('x-content-type-options', 'nosniff')
   res.setHeader('x-frame-options', 'DENY')
   res.setHeader('referrer-policy', 'no-referrer')
   res.setHeader('permissions-policy', 'camera=(), microphone=(), geolocation=()')
+  if (config.environment === 'production')
+    res.setHeader('strict-transport-security', 'max-age=31536000; includeSubDomains')
   res.setHeader(
     'content-security-policy',
     "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
@@ -27,13 +33,21 @@ export function prepareRequest(req, res, config) {
   } else if (origin) {
     throw new HttpError(403, 'ORIGIN_DENIED', 'The request origin is not allowed.')
   }
-  const key = `${req.socket.remoteAddress || 'unknown'}:${Math.floor(Date.now() / 60_000)}`
+  const limit = config.rateLimit || RATE_LIMIT
+  const minute = Math.floor(Date.now() / 60_000)
+  const key = `${req.socket.remoteAddress || 'unknown'}:${minute}`
   const count = (buckets.get(key) || 0) + 1
   buckets.set(key, count)
-  res.setHeader('ratelimit-limit', '120')
-  res.setHeader('ratelimit-remaining', String(Math.max(0, 120 - count)))
-  if (count > 120) throw new HttpError(429, 'RATE_LIMITED', 'Too many requests. Try again shortly.')
-  if (buckets.size > 10_000) buckets.clear()
+  res.setHeader('ratelimit-limit', String(limit))
+  res.setHeader('ratelimit-remaining', String(Math.max(0, limit - count)))
+  res.setHeader('ratelimit-reset', String((minute + 1) * 60))
+  if (count > limit) {
+    res.setHeader('retry-after', '60')
+    throw new HttpError(429, 'RATE_LIMITED', 'Too many requests. Try again shortly.')
+  }
+  for (const bucketKey of buckets.keys()) {
+    if (!bucketKey.endsWith(`:${minute}`)) buckets.delete(bucketKey)
+  }
 }
 
 export function sendJson(res, status, payload) {

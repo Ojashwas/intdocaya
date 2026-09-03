@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
 test('sign-in, home and Document Center are connected', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Sign in to continue' })).toBeVisible()
   await page.getByRole('button', { name: /continue with organizational sso/i }).click()
-  await expect(page.getByRole('heading', { name: /welcome, khalid/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /welcome,/i })).toBeVisible()
   await page.getByRole('button', { name: /document center/i }).click()
   await expect(page.getByRole('heading', { name: 'Document Center' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Document register' })).toBeVisible()

@@ -18,7 +18,6 @@ export class AzureSearchAdapter {
         : { authorization: `Bearer ${(await this.credential.getToken('https://search.azure.com/.default')).token}` }),
     }
   }
-
   async request(path, body) {
     const response = await fetch(`${this.endpoint}${path}`, {
       method: 'POST',
@@ -33,6 +32,15 @@ export class AzureSearchAdapter {
     return this.request('/indexes/' + encodeURIComponent(this.index) + '/docs/index?api-version=2023-11-01', {
       value: [{ '@search.action': 'mergeOrUpload', ...document }],
     })
+  }
+
+  async healthCheck() {
+    const response = await fetch(
+      `${this.endpoint}/indexes/${encodeURIComponent(this.index)}?api-version=2023-11-01`,
+      { headers: await this.headers() },
+    )
+    if (!response.ok) throw new Error(`Azure AI Search returned HTTP ${response.status}.`)
+    return true
   }
 
   async search(searchText, { top = 25, filter } = {}) {
