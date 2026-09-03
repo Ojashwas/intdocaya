@@ -139,7 +139,12 @@ export function createDocayaServer({ config, repository, search = null, cache = 
           )
           const document = await repository.createDocument(actor, input)
           if (search) await search.indexDocument(document)
-          if (events) await events.publish({ type: 'document.created', documentId: document.id, tenantId: actor.tenantId })
+          if (events)
+            await events.publish({
+              type: 'document.created',
+              documentId: document.id,
+              tenantId: actor.tenantId,
+            })
           await audit(repository, req, actor, 'document.register', 'document', document.id)
           return sendJson(res, 201, { document })
         }
@@ -264,9 +269,19 @@ export function createDocayaServer({ config, repository, search = null, cache = 
           const body = await readJson(req, config.bodyLimit)
           const query = cleanText(body.query, 'query', { min: 1, max: 500 })
           if (body.filters?.status !== undefined)
-            assert(documentStatuses.includes(body.filters.status), 422, 'VALIDATION_ERROR', 'Document status is invalid.')
+            assert(
+              documentStatuses.includes(body.filters.status),
+              422,
+              'VALIDATION_ERROR',
+              'Document status is invalid.',
+            )
           const requestedLimit = Number(body.limit || 25)
-          assert(Number.isInteger(requestedLimit) && requestedLimit > 0, 422, 'VALIDATION_ERROR', 'limit must be a positive integer.')
+          assert(
+            Number.isInteger(requestedLimit) && requestedLimit > 0,
+            422,
+            'VALIDATION_ERROR',
+            'limit must be a positive integer.',
+          )
           const searchLimit = Math.min(requestedLimit, 100)
           const result = await repository.listDocuments(actor, {
             q: query,
@@ -372,6 +387,41 @@ export function createDocayaServer({ config, repository, search = null, cache = 
           })
           return sendJson(res, 200, { updated })
         }
+        const notificationStateMatch = route.match(/^\/api\/v1\/notifications\/([^/]+)\/(read|unread)$/)
+        if (notificationStateMatch && req.method === 'POST') {
+          authorize(actor, 'notification:read')
+          const id = decodeURIComponent(notificationStateMatch[1])
+          const updated =
+            notificationStateMatch[2] === 'read'
+              ? await repository.markNotificationsRead(actor, [id])
+              : await repository.markNotificationUnread(actor, id)
+          assert(updated, 404, 'NOT_FOUND', 'Notification not found.')
+          await audit(repository, req, actor, `notification.${notificationStateMatch[2]}`, 'notification', id)
+          return sendJson(res, 200, { updated: Number(updated) })
+        }
+        if (route === '/api/v1/notifications/preferences' && req.method === 'GET') {
+          authorize(actor, 'notification:read')
+          return sendJson(res, 200, { preferences: await repository.getNotificationPreferences(actor) })
+        }
+        if (route === '/api/v1/notifications/preferences' && req.method === 'PATCH') {
+          authorize(actor, 'notification:read')
+          const body = await readJson(req, config.bodyLimit)
+          const allowed = ['workflowEnabled', 'collaborationEnabled', 'securityEnabled', 'systemEnabled']
+          const changes = Object.fromEntries(
+            Object.entries(body).filter(
+              ([key, value]) => allowed.includes(key) && typeof value === 'boolean',
+            ),
+          )
+          assert(
+            Object.keys(changes).length > 0,
+            422,
+            'VALIDATION_ERROR',
+            'At least one boolean preference is required.',
+          )
+          return sendJson(res, 200, {
+            preferences: await repository.updateNotificationPreferences(actor, changes),
+          })
+        }
         if (route === '/api/v1/audit' && req.method === 'GET') {
           authorize(actor, 'audit:read')
           return sendJson(res, 200, {
@@ -385,6 +435,31 @@ export function createDocayaServer({ config, repository, search = null, cache = 
           authorize(actor, 'admin:read')
           await audit(repository, req, actor, 'admin.overview', 'admin', null)
           return sendJson(res, 200, { overview: await repository.getOverview(actor) })
+        }
+        if (route === '/api/v1/admin/users' && req.method === 'GET') {
+          authorize(actor, 'admin:read')
+          return sendJson(res, 200, { users: await repository.listAdminUsers(actor) })
+        }
+        if (route === '/api/v1/admin/settings' && req.method === 'GET') {
+          authorize(actor, 'admin:read')
+          return sendJson(res, 200, { settings: await repository.getSettings(actor) })
+        }
+        if (route === '/api/v1/admin/settings' && req.method === 'PATCH') {
+          authorize(actor, 'admin:write')
+          const body = await readJson(req, config.bodyLimit)
+          const changes = {}
+          if (typeof body.defaultLanguage === 'string')
+            changes.defaultLanguage = cleanText(body.defaultLanguage, 'defaultLanguage', { max: 50 })
+          if (typeof body.defaultRetention === 'string')
+            changes.defaultRetention = cleanText(body.defaultRetention, 'defaultRetention', { max: 50 })
+          if (typeof body.requireWorkflowOnSubmit === 'boolean')
+            changes.requireWorkflowOnSubmit = body.requireWorkflowOnSubmit
+          if (typeof body.notifyOnDocumentEvents === 'boolean')
+            changes.notifyOnDocumentEvents = body.notifyOnDocumentEvents
+          assert(Object.keys(changes).length > 0, 422, 'VALIDATION_ERROR', 'No valid settings were supplied.')
+          const settings = await repository.updateSettings(actor, changes)
+          await audit(repository, req, actor, 'admin.settings.update', 'settings', actor.tenantId)
+          return sendJson(res, 200, { settings })
         }
 
         const knownPath = route.match(

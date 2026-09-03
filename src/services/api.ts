@@ -145,6 +145,30 @@ export async function listNotifications() {
 export async function markAllNotificationsRead() {
   return request<{ updated: number }>('/notifications/read', { method: 'POST', body: '{}' })
 }
+export async function markNotificationRead(id: string) {
+  return request<{ updated: number }>(`/notifications/${encodeURIComponent(id)}/read`, { method: 'POST' })
+}
+export async function markNotificationUnread(id: string) {
+  return request<{ updated: number }>(`/notifications/${encodeURIComponent(id)}/unread`, { method: 'POST' })
+}
+export type NotificationPreferences = {
+  workflowEnabled: boolean
+  collaborationEnabled: boolean
+  securityEnabled: boolean
+  systemEnabled: boolean
+  updatedAt: string | null
+}
+export async function getNotificationPreferences() {
+  return (await request<{ preferences: NotificationPreferences }>('/notifications/preferences')).preferences
+}
+export async function updateNotificationPreferences(changes: Partial<NotificationPreferences>) {
+  return (
+    await request<{ preferences: NotificationPreferences }>('/notifications/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify(changes),
+    })
+  ).preferences
+}
 export async function getOverview() {
   return (
     await request<{
@@ -157,6 +181,28 @@ export async function getOverview() {
       }
     }>('/admin/overview')
   ).overview
+}
+export type TenantSettings = {
+  defaultLanguage: string
+  defaultRetention: string
+  requireWorkflowOnSubmit: boolean
+  notifyOnDocumentEvents: boolean
+  updatedBy: string
+  updatedAt: string | null
+}
+export async function getAdminSettings() {
+  return (await request<{ settings: TenantSettings }>('/admin/settings')).settings
+}
+export async function updateAdminSettings(changes: Partial<TenantSettings>) {
+  return (
+    await request<{ settings: TenantSettings }>('/admin/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(changes),
+    })
+  ).settings
+}
+export async function listAdminUsers() {
+  return (await request<{ users: Array<Record<string, unknown>> }>('/admin/users')).users
 }
 export async function searchDocuments(query: string, signal: AbortSignal) {
   return (

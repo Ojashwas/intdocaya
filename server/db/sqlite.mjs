@@ -459,6 +459,105 @@ export class SqliteRepository {
       .run(timestamp, actor.tenantId, actor.id, ...ids).changes
   }
 
+  markNotificationUnread(actor, id) {
+    return Boolean(
+      this.db
+        .prepare('UPDATE notifications SET read_at=NULL WHERE tenant_id=? AND user_id=? AND id=?')
+        .run(actor.tenantId, actor.id, id).changes,
+    )
+  }
+
+  getNotificationPreferences(actor) {
+    const row = this.db
+      .prepare('SELECT * FROM notification_preferences WHERE tenant_id=? AND user_id=?')
+      .get(actor.tenantId, actor.id)
+    return row
+      ? {
+          workflowEnabled: Boolean(row.workflow_enabled),
+          collaborationEnabled: Boolean(row.collaboration_enabled),
+          securityEnabled: Boolean(row.security_enabled),
+          systemEnabled: Boolean(row.system_enabled),
+          updatedAt: row.updated_at,
+        }
+      : {
+          workflowEnabled: true,
+          collaborationEnabled: true,
+          securityEnabled: true,
+          systemEnabled: true,
+          updatedAt: null,
+        }
+  }
+
+  updateNotificationPreferences(actor, changes) {
+    const current = this.getNotificationPreferences(actor)
+    const next = { ...current, ...changes, updatedAt: now() }
+    this.db
+      .prepare(
+        `INSERT INTO notification_preferences(tenant_id,user_id,workflow_enabled,collaboration_enabled,security_enabled,system_enabled,updated_at)
+         VALUES (?,?,?,?,?,?,?)
+         ON CONFLICT(tenant_id,user_id) DO UPDATE SET workflow_enabled=excluded.workflow_enabled,collaboration_enabled=excluded.collaboration_enabled,security_enabled=excluded.security_enabled,system_enabled=excluded.system_enabled,updated_at=excluded.updated_at`,
+      )
+      .run(
+        actor.tenantId,
+        actor.id,
+        Number(next.workflowEnabled),
+        Number(next.collaborationEnabled),
+        Number(next.securityEnabled),
+        Number(next.systemEnabled),
+        next.updatedAt,
+      )
+    return this.getNotificationPreferences(actor)
+  }
+
+  listAdminUsers(actor) {
+    return this.db
+      .prepare(
+        'SELECT id,name,email,role,status,created_at,updated_at FROM users WHERE tenant_id=? ORDER BY name',
+      )
+      .all(actor.tenantId)
+  }
+
+  getSettings(actor) {
+    const row = this.db.prepare('SELECT * FROM tenant_settings WHERE tenant_id=?').get(actor.tenantId)
+    return row
+      ? {
+          defaultLanguage: row.default_language,
+          defaultRetention: row.default_retention,
+          requireWorkflowOnSubmit: Boolean(row.require_workflow_on_submit),
+          notifyOnDocumentEvents: Boolean(row.notify_on_document_events),
+          updatedBy: row.updated_by,
+          updatedAt: row.updated_at,
+        }
+      : {
+          defaultLanguage: 'English',
+          defaultRetention: '7 years',
+          requireWorkflowOnSubmit: true,
+          notifyOnDocumentEvents: true,
+          updatedBy: actor.id,
+          updatedAt: null,
+        }
+  }
+
+  updateSettings(actor, changes) {
+    const next = { ...this.getSettings(actor), ...changes, updatedBy: actor.id, updatedAt: now() }
+    this.db
+      .prepare(
+        `INSERT INTO tenant_settings(tenant_id,default_language,default_retention,require_workflow_on_submit,notify_on_document_events,updated_by,updated_at)
+         VALUES (?,?,?,?,?,?,?)
+         ON CONFLICT(tenant_id) DO UPDATE SET default_language=excluded.default_language,default_retention=excluded.default_retention,require_workflow_on_submit=excluded.require_workflow_on_submit,notify_on_document_events=excluded.notify_on_document_events,updated_by=excluded.updated_by,updated_at=excluded.updated_at`,
+      )
+      .run(
+        actor.tenantId,
+        next.defaultLanguage,
+        next.defaultRetention,
+        Number(next.requireWorkflowOnSubmit),
+        Number(next.notifyOnDocumentEvents),
+        actor.id,
+        next.updatedAt,
+      )
+    return this.getSettings(actor)
+  }
+
   appendAudit(event) {
     const previous =
       this.db

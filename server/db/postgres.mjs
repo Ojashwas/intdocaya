@@ -304,6 +304,101 @@ export class PostgresRepository {
       ).rowCount
     })
   }
+  async markNotificationUnread(actor, id) {
+    return this.tenant(actor, async (client) =>
+      Boolean(
+        (
+          await client.query(
+            'UPDATE notifications SET read_at=NULL WHERE tenant_id=$1 AND user_id=$2 AND id=$3',
+            [actor.tenantId, actor.id, id],
+          )
+        ).rowCount,
+      ),
+    )
+  }
+  async getNotificationPreferences(actor) {
+    return this.tenant(actor, async (client) => {
+      const row = (
+        await client.query('SELECT * FROM notification_preferences WHERE tenant_id=$1 AND user_id=$2', [
+          actor.tenantId,
+          actor.id,
+        ])
+      ).rows[0]
+      return {
+        workflowEnabled: row?.workflow_enabled ?? true,
+        collaborationEnabled: row?.collaboration_enabled ?? true,
+        securityEnabled: row?.security_enabled ?? true,
+        systemEnabled: row?.system_enabled ?? true,
+        updatedAt: row?.updated_at || null,
+      }
+    })
+  }
+  async updateNotificationPreferences(actor, changes) {
+    const current = await this.getNotificationPreferences(actor)
+    const next = { ...current, ...changes }
+    await this.tenant(actor, (client) =>
+      client.query(
+        `INSERT INTO notification_preferences(tenant_id,user_id,workflow_enabled,collaboration_enabled,security_enabled,system_enabled)
+         VALUES ($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (tenant_id,user_id) DO UPDATE SET workflow_enabled=EXCLUDED.workflow_enabled,collaboration_enabled=EXCLUDED.collaboration_enabled,security_enabled=EXCLUDED.security_enabled,system_enabled=EXCLUDED.system_enabled,updated_at=now()`,
+        [
+          actor.tenantId,
+          actor.id,
+          next.workflowEnabled,
+          next.collaborationEnabled,
+          next.securityEnabled,
+          next.systemEnabled,
+        ],
+      ),
+    )
+    return this.getNotificationPreferences(actor)
+  }
+  async listAdminUsers(actor) {
+    return this.tenant(
+      actor,
+      async (client) =>
+        (
+          await client.query(
+            'SELECT id,name,email,role,status,created_at,updated_at FROM users WHERE tenant_id=$1 ORDER BY name',
+            [actor.tenantId],
+          )
+        ).rows,
+    )
+  }
+  async getSettings(actor) {
+    return this.tenant(actor, async (client) => {
+      const row = (await client.query('SELECT * FROM tenant_settings WHERE tenant_id=$1', [actor.tenantId]))
+        .rows[0]
+      return {
+        defaultLanguage: row?.default_language || 'English',
+        defaultRetention: row?.default_retention || '7 years',
+        requireWorkflowOnSubmit: row?.require_workflow_on_submit ?? true,
+        notifyOnDocumentEvents: row?.notify_on_document_events ?? true,
+        updatedBy: row?.updated_by || actor.id,
+        updatedAt: row?.updated_at || null,
+      }
+    })
+  }
+  async updateSettings(actor, changes) {
+    const current = await this.getSettings(actor)
+    const next = { ...current, ...changes }
+    await this.tenant(actor, (client) =>
+      client.query(
+        `INSERT INTO tenant_settings(tenant_id,default_language,default_retention,require_workflow_on_submit,notify_on_document_events,updated_by)
+         VALUES ($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (tenant_id) DO UPDATE SET default_language=EXCLUDED.default_language,default_retention=EXCLUDED.default_retention,require_workflow_on_submit=EXCLUDED.require_workflow_on_submit,notify_on_document_events=EXCLUDED.notify_on_document_events,updated_by=EXCLUDED.updated_by,updated_at=now()`,
+        [
+          actor.tenantId,
+          next.defaultLanguage,
+          next.defaultRetention,
+          next.requireWorkflowOnSubmit,
+          next.notifyOnDocumentEvents,
+          actor.id,
+        ],
+      ),
+    )
+    return this.getSettings(actor)
+  }
   async appendAudit(event) {
     const actor = { tenantId: event.tenantId }
     return this.tenant(actor, async (client) => {

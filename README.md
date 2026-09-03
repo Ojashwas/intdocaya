@@ -49,6 +49,15 @@ Upload sessions accept bounded binary chunks, support cancellation/retry, quaran
 
 See [architecture](docs/architecture.md), [threat model](docs/threat-model.md), [API contract](docs/api/openapi.json), and [operations runbook](docs/runbooks/operations.md).
 
+### Notifications and administration
+
+Notifications are persisted per tenant and support listing, mark-all-read, individual
+read/unread state, and category preferences through `/api/v1/notifications`.
+Administrators with `admin:read` can view tenant users and settings; `admin:write`
+can update language, retention, workflow enforcement, and document-event notification
+defaults through `/api/v1/admin/settings`. SQLite and PostgreSQL migrations are kept
+in sync under `server/db/migrations` and `server/db/postgres-migrations`.
+
 ## Deployment
 
 1. Build and scan an immutable image, push it to ACR, and pass its release tag or digest to `containerImage`.

@@ -10,16 +10,21 @@ import { NotificationCenter, type NotificationItem } from './features/notificati
 import {
   decideWorkflow,
   developmentSignIn,
+  getAdminSettings,
   getOverview,
+  listAdminUsers,
   listDocuments,
   listNotifications,
   listWorkflows,
   markAllNotificationsRead,
+  markNotificationRead,
+  markNotificationUnread,
   registerDocument,
   restoreSession,
   searchDocuments,
   signOut,
   updateDocument,
+  updateAdminSettings,
 } from './services/api'
 import type {
   ActivityItem,
@@ -48,6 +53,10 @@ export default function App() {
   const [tasks, setTasks] = useState<WorkflowTask[]>([])
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [overview, setOverview] = useState<Overview | null>(null)
+  const [adminSettings, setAdminSettings] = useState<Awaited<ReturnType<typeof getAdminSettings>> | null>(
+    null,
+  )
+  const [adminUsers, setAdminUsers] = useState<Array<Record<string, unknown>>>([])
   const [selected, setSelected] = useState<ControlledDocument | null>(null)
   const [registerOpen, setRegisterOpen] = useState(false)
   const [locale, setLocale] = useState<Locale>(
@@ -112,7 +121,14 @@ export default function App() {
   }
   const refreshOverview = async () => {
     try {
-      setOverview(await getOverview())
+      const [nextOverview, settings, users] = await Promise.all([
+        getOverview(),
+        getAdminSettings(),
+        listAdminUsers(),
+      ])
+      setOverview(nextOverview)
+      setAdminSettings(settings)
+      setAdminUsers(users)
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : 'Admin metrics could not be loaded.')
     }
@@ -163,6 +179,19 @@ export default function App() {
     setNotifications((rows) =>
       rows.map((item) => ({ ...item, readAt: item.readAt || new Date().toISOString() })),
     )
+  }
+  const handleToggleNotification = async (id: string, read: boolean) => {
+    if (read) await markNotificationRead(id)
+    else await markNotificationUnread(id)
+    setNotifications((rows) =>
+      rows.map((item) =>
+        item.id === id ? { ...item, readAt: read ? new Date().toISOString() : null } : item,
+      ),
+    )
+  }
+  const handleAdminSettings = async (changes: Parameters<typeof updateAdminSettings>[0]) => {
+    setAdminSettings(await updateAdminSettings(changes))
+    setMessage('Administration settings saved.')
   }
   const handleSearch = useCallback(
     async (query: string) => {
@@ -263,8 +292,21 @@ export default function App() {
           onReviewComplete={handleReview}
         />
       )}
-      {page === 'notifications' && <NotificationCenter items={notifications} onMarkAllRead={handleMarkAll} />}
-      {page === 'admin' && <AdminCenter overview={overview} />}
+      {page === 'notifications' && (
+        <NotificationCenter
+          items={notifications}
+          onMarkAllRead={handleMarkAll}
+          onToggleRead={handleToggleNotification}
+        />
+      )}
+      {page === 'admin' && (
+        <AdminCenter
+          overview={overview}
+          settings={adminSettings}
+          users={adminUsers}
+          onSaveSettings={handleAdminSettings}
+        />
+      )}
       {registerOpen && (
         <RegisterDocumentModal
           user={user}

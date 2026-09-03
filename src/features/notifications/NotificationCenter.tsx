@@ -14,9 +14,11 @@ export type NotificationItem = {
 export function NotificationCenter({
   items,
   onMarkAllRead,
+  onToggleRead,
 }: {
   items: NotificationItem[]
   onMarkAllRead: () => Promise<void>
+  onToggleRead: (id: string, read: boolean) => Promise<void>
 }) {
   const [tab, setTab] = useState('all')
   const [message, setMessage] = useState('')
@@ -82,7 +84,13 @@ export function NotificationCenter({
                     )}
                   </time>
                 </div>
-                {!item.readAt && <i aria-label="Unread" />}
+                <button
+                  className="text-button"
+                  onClick={() => void onToggleRead(item.id, !item.readAt)}
+                  aria-label={item.readAt ? 'Mark notification unread' : 'Mark notification read'}
+                >
+                  {item.readAt ? 'Mark unread' : 'Mark read'}
+                </button>
               </article>
             ))}
           </div>

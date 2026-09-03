@@ -135,9 +135,9 @@ export function AppShell({
             <CircleHelp size={18} />
             <span>Help Center</span>
           </button>
-          <button className="side-nav">
+          <button className="side-nav" onClick={() => navigate('admin')}>
             <Settings size={18} />
-            <span>Settings</span>
+            <span>Settings & administration</span>
           </button>
           <div className="security-note">
             <ShieldCheck size={17} />
