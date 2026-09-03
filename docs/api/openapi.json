@@ -1,0 +1,308 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Docaya API",
+    "version": "1.1.0",
+    "description": "Authenticated, tenant-scoped Docaya document-management API."
+  },
+  "servers": [{ "url": "/" }],
+  "components": {
+    "securitySchemes": {
+      "entraBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Microsoft Entra ID OAuth 2.0 access token."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "message", "requestId"],
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" },
+              "requestId": { "type": "string" },
+              "docs": { "type": "string", "format": "uri" }
+            }
+          }
+        }
+      },
+      "Page": {
+        "type": "object",
+        "properties": {
+          "nextCursor": { "type": ["string", "null"] },
+          "limit": { "type": "integer", "minimum": 1, "maximum": 100 }
+        }
+      },
+      "Document": {
+        "type": "object",
+        "required": [
+          "id",
+          "tenantId",
+          "number",
+          "title",
+          "status",
+          "classification",
+          "sizeBytes",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "tenantId": { "type": "string" },
+          "number": { "type": "string" },
+          "title": { "type": "string" },
+          "type": { "type": "string" },
+          "status": {
+            "enum": ["Draft", "Under Review", "Under Approval", "Published", "Superseded", "Archived"]
+          },
+          "classification": { "enum": ["Public", "Internal", "Confidential", "Restricted"] },
+          "owner": { "type": "string" },
+          "department": { "type": "string" },
+          "library": { "type": "string" },
+          "summary": { "type": "string" },
+          "sizeBytes": { "type": "integer", "minimum": 0 },
+          "contentHash": { "type": ["string", "null"] },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Upload": {
+        "type": "object",
+        "required": ["id", "fileName", "sizeBytes", "chunkSize", "state"],
+        "properties": {
+          "id": { "type": "string" },
+          "fileName": { "type": "string" },
+          "mimeType": { "type": "string" },
+          "sizeBytes": { "type": "integer" },
+          "chunkSize": { "type": "integer" },
+          "state": {
+            "enum": [
+              "created",
+              "uploading",
+              "quarantined",
+              "scanning",
+              "clean",
+              "rejected",
+              "completed",
+              "cancelled"
+            ]
+          },
+          "receivedBytes": { "type": "integer" },
+          "contentHash": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "responses": {
+      "Error": {
+        "description": "Standard error envelope",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    }
+  },
+  "paths": {
+    "/health/live": {
+      "get": {
+        "summary": "Liveness",
+        "responses": {
+          "200": { "description": "Alive" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "summary": "Readiness",
+        "responses": {
+          "200": { "description": "Ready" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "summary": "Current actor",
+        "security": [{ "entraBearer": [] }],
+        "responses": {
+          "200": { "description": "Actor" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/v1/documents": {
+      "get": {
+        "summary": "List authorized documents",
+        "security": [{ "entraBearer": [] }],
+        "parameters": [
+          { "name": "cursor", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "maximum": 100 } },
+          { "name": "q", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Cursor page" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "post": {
+        "summary": "Register external document metadata",
+        "security": [{ "entraBearer": [] }],
+        "parameters": [
+          { "name": "Idempotency-Key", "in": "header", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "201": { "description": "Registered" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/v1/documents/{id}": {
+      "get": {
+        "summary": "Get document",
+        "security": [{ "entraBearer": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Document" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "patch": {
+        "summary": "Update document",
+        "security": [{ "entraBearer": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Updated" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "delete": {
+        "summary": "Soft-delete document",
+        "security": [{ "entraBearer": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Deleted" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/v1/uploads": {
+      "post": {
+        "summary": "Create resumable upload session",
+        "security": [{ "entraBearer": [] }],
+        "parameters": [
+          { "name": "Idempotency-Key", "in": "header", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "201": { "description": "Session created" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/v1/uploads/{id}/chunks/{number}": {
+      "put": {
+        "summary": "Stream one upload chunk",
+        "security": [{ "entraBearer": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "number", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Chunk accepted" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/v1/uploads/{id}/complete": {
+      "post": {
+        "summary": "Scan and commit upload",
+        "security": [{ "entraBearer": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "201": { "description": "Committed" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/v1/search": {
+      "post": {
+        "summary": "Search authorized documents",
+        "security": [{ "entraBearer": [] }],
+        "responses": {
+          "200": { "description": "Results" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/v1/workflows": {
+      "get": {
+        "summary": "List assigned workflows",
+        "security": [{ "entraBearer": [] }],
+        "responses": {
+          "200": { "description": "Workflows" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "post": {
+        "summary": "Start workflow",
+        "security": [{ "entraBearer": [] }],
+        "responses": {
+          "201": { "description": "Started" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/v1/workflows/{id}/decision": {
+      "post": {
+        "summary": "Record workflow decision",
+        "security": [{ "entraBearer": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Decision recorded" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "summary": "List notifications",
+        "security": [{ "entraBearer": [] }],
+        "responses": {
+          "200": { "description": "Notifications" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/v1/notifications/read": {
+      "post": {
+        "summary": "Mark notifications read",
+        "security": [{ "entraBearer": [] }],
+        "responses": {
+          "200": { "description": "Updated" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/v1/audit": {
+      "get": {
+        "summary": "Read audit chain",
+        "security": [{ "entraBearer": [] }],
+        "responses": {
+          "200": { "description": "Audit events" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/v1/admin/overview": {
+      "get": {
+        "summary": "Trusted administration metrics",
+        "security": [{ "entraBearer": [] }],
+        "responses": {
+          "200": { "description": "Overview" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    }
+  }
+}

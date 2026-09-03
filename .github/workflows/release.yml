@@ -1,0 +1,29 @@
+name: Release validation
+on:
+  workflow_dispatch:
+    inputs:
+      resourceGroup: { description: 'Approved Azure resource group', required: true }
+      parametersFile: { description: 'Secure deployment parameters path', required: true }
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  validate:
+    environment: production-approval
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          {
+            client-id: '${{ secrets.AZURE_CLIENT_ID }}',
+            tenant-id: '${{ secrets.AZURE_TENANT_ID }}',
+            subscription-id: '${{ secrets.AZURE_SUBSCRIPTION_ID }}',
+          }
+      - uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az deployment group validate --resource-group "${{ inputs.resourceGroup }}" --template-file infra/main.bicep --parameters "${{ inputs.parametersFile }}"
+            az deployment group what-if --resource-group "${{ inputs.resourceGroup }}" --template-file infra/main.bicep --parameters "${{ inputs.parametersFile }}" --no-pretty-print > what-if.txt
+      - uses: actions/upload-artifact@v4
+        with: { name: reviewed-what-if, path: what-if.txt }

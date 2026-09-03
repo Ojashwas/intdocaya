@@ -1,0 +1,40 @@
+:root {
+  font-family: Inter, 'Segoe UI', Tahoma, Arial, sans-serif;
+  color: #25251f;
+  background: #f6f4ee;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+
+  --moi-gold-900: #52420f;
+  --moi-gold-800: #695418;
+  --moi-gold-700: #806820;
+  --moi-gold-600: #aa8d36;
+  --moi-gold-400: #d4bd72;
+  --moi-gold-200: #eee3bf;
+  --moi-gold-100: #f8f2df;
+  --moi-green: #087a43;
+  --moi-green-soft: #dcf6e8;
+  --moi-red: #bf282e;
+  --moi-red-soft: #fde4e5;
+  --moi-blue: #2f6d88;
+  --moi-blue-soft: #e3f1f6;
+  --moi-amber: #bd7614;
+  --moi-amber-soft: #fff0ce;
+
+  --ink: #25251f;
+  --ink-soft: #5f5c50;
+  --muted: #6d6858;
+  --line: #e5dcc8;
+  --line-strong: #d8ccb3;
+  --surface: #ffffff;
+  --surface-soft: #fbfaf6;
+  --canvas: #f7f5ef;
+  --shadow-sm: 0 2px 8px rgba(74, 61, 26, 0.07);
+  --shadow-md: 0 14px 38px rgba(65, 53, 22, 0.12);
+  --shadow-lg: 0 28px 70px rgba(38, 34, 23, 0.24);
+  --radius-sm: 8px;
+  --radius-md: 13px;
+  --radius-lg: 20px;
+  --sidebar-width: 248px;
+  --topbar-height: 76px;
+}

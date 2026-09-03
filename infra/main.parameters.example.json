@@ -1,0 +1,29 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": { "value": "development" },
+    "containerImage": { "value": "example.azurecr.io/docaya:1.1.0-build.123" },
+    "postgresAdministratorPassword": {
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example/providers/Microsoft.KeyVault/vaults/example"
+        },
+        "secretName": "docaya-postgres-admin"
+      }
+    },
+    "postgresConnectionString": {
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example/providers/Microsoft.KeyVault/vaults/example"
+        },
+        "secretName": "docaya-postgres-url"
+      }
+    },
+    "entraTenantId": { "value": "00000000-0000-0000-0000-000000000000" },
+    "entraClientId": { "value": "00000000-0000-0000-0000-000000000000" },
+    "corsAllowedOrigins": { "value": "https://docaya.example.gov" },
+    "sharePointSiteUrl": { "value": "https://example.sharepoint.com/sites/docaya" },
+    "sharePointDriveId": { "value": "explicit-drive-id" }
+  }
+}
