@@ -201,8 +201,17 @@ export async function updateAdminSettings(changes: Partial<TenantSettings>) {
     })
   ).settings
 }
+export type AdminUser = {
+  id: string
+  name: string
+  email: string
+  role: string
+  status: 'invited' | 'active' | 'suspended' | 'deprovisioned'
+  created_at: string
+  updated_at?: string
+}
 export async function listAdminUsers() {
-  return (await request<{ users: Array<Record<string, unknown>> }>('/admin/users')).users
+  return (await request<{ users: AdminUser[] }>('/admin/users')).users
 }
 export async function searchDocuments(query: string, signal: AbortSignal) {
   return (

@@ -26,6 +26,7 @@ import {
   updateDocument,
   updateAdminSettings,
 } from './services/api'
+import type { AdminUser } from './services/api'
 import type {
   ActivityItem,
   AppPage,
@@ -56,7 +57,7 @@ export default function App() {
   const [adminSettings, setAdminSettings] = useState<Awaited<ReturnType<typeof getAdminSettings>> | null>(
     null,
   )
-  const [adminUsers, setAdminUsers] = useState<Array<Record<string, unknown>>>([])
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
   const [selected, setSelected] = useState<ControlledDocument | null>(null)
   const [registerOpen, setRegisterOpen] = useState(false)
   const [locale, setLocale] = useState<Locale>(

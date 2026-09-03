@@ -53,10 +53,12 @@ See [architecture](docs/architecture.md), [threat model](docs/threat-model.md), 
 
 Notifications are persisted per tenant and support listing, mark-all-read, individual
 read/unread state, and category preferences through `/api/v1/notifications`.
-Administrators with `admin:read` can view tenant users and settings; `admin:write`
-can update language, retention, workflow enforcement, and document-event notification
-defaults through `/api/v1/admin/settings`. SQLite and PostgreSQL migrations are kept
-in sync under `server/db/migrations` and `server/db/postgres-migrations`.
+The Admin Center is organized into Overview, Users, and Governance settings sections.
+Users can be searched and filtered by status, while governance settings expose language,
+retention, workflow enforcement, and document-event notification defaults. Administrators
+with `admin:read` can view tenant users and settings; `admin:write` can update settings
+through `/api/v1/admin/settings`. SQLite and PostgreSQL migrations are kept in sync
+under `server/db/migrations` and `server/db/postgres-migrations`.
 
 ## Deployment
 
