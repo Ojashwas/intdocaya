@@ -59,7 +59,14 @@ const parseCursor = (value) => {
   }
 }
 
-export function createDocayaServer({ config, repository, search = null, cache = null, events = null }) {
+export function createDocayaServer({
+  config,
+  repository,
+  search = null,
+  cache = null,
+  events = null,
+  assistant = null,
+}) {
   const authenticate = createAuthenticator(config)
   const uploads = new UploadService(config, repository)
   const staticRoot = resolve('dist')
@@ -355,6 +362,54 @@ export function createDocayaServer({ config, repository, search = null, cache = 
           return sendJson(res, 200, { results: result.items, page: { nextCursor: result.nextCursor } })
         }
 
+        if (route === '/api/v1/assistant/ask' && req.method === 'POST') {
+          authorize(actor, 'document:read')
+          assert(
+            assistant,
+            503,
+            'ASSISTANT_UNAVAILABLE',
+            'The AI assistant is not configured for this environment.',
+          )
+          const body = await readJson(req, config.bodyLimit)
+          const question = cleanText(body.question, 'question', { min: 3, max: 500 })
+          const references = await findRelevantDocuments(repository, actor, question)
+          const contextText = references.length
+            ? references
+                .map(
+                  (document, index) =>
+                    `${index + 1}. ${document.title} (${document.number}) — status: ${document.status}, department: ${document.department}, next review: ${document.nextReview}`,
+                )
+                .join('\n')
+            : 'No controlled documents matched this question.'
+          const messages = [
+            {
+              role: 'system',
+              content:
+                'You are Ask Docaya, an assistant for a document-governance platform. Answer only using the CONTROLLED DOCUMENTS context below. If the context does not answer the question, say you could not find a matching controlled document. Be concise and cite document numbers when relevant.',
+            },
+            { role: 'user', content: `CONTROLLED DOCUMENTS:\n${contextText}\n\nQUESTION: ${question}` },
+          ]
+          let answer
+          try {
+            answer = await assistant.chat(messages)
+          } catch (error) {
+            console.error(
+              JSON.stringify({
+                level: 'error',
+                requestId: req.requestId,
+                event: 'assistant.upstream_error',
+                message: error instanceof Error ? error.message : String(error),
+              }),
+            )
+            throw new HttpError(502, 'ASSISTANT_UPSTREAM_ERROR', 'The AI assistant could not generate a response.')
+          }
+          await audit(repository, req, actor, 'assistant.ask', 'assistant', null, 'success', {
+            questionLength: question.length,
+            referencedDocuments: references.length,
+          })
+          return sendJson(res, 200, { answer, references })
+        }
+
         if (route === '/api/v1/workflows' && req.method === 'GET') {
           authorize(actor, 'workflow:read')
           return sendJson(res, 200, { workflows: await repository.listWorkflows(actor) })
@@ -554,7 +609,7 @@ export function createDocayaServer({ config, repository, search = null, cache = 
         }
 
         const knownPath = route.match(
-          /^\/api\/v1\/(documents|trash|uploads|search|workflows|notifications|audit|admin)(?:\/|$)/,
+          /^\/api\/v1\/(documents|trash|uploads|search|workflows|notifications|audit|admin|assistant)(?:\/|$)/,
         )
         if (knownPath) {
           res.setHeader('allow', allowedMethods(route))
@@ -593,6 +648,59 @@ export function createDocayaServer({ config, repository, search = null, cache = 
   return createServer(handler)
 }
 
+const assistantStopWords = new Set([
+  'what',
+  'when',
+  'where',
+  'which',
+  'who',
+  'whom',
+  'whose',
+  'why',
+  'how',
+  'does',
+  'did',
+  'the',
+  'this',
+  'that',
+  'these',
+  'those',
+  'and',
+  'for',
+  'with',
+  'from',
+  'has',
+  'have',
+  'was',
+  'were',
+  'about',
+  'please',
+  'tell',
+  'give',
+])
+async function findRelevantDocuments(repository, actor, question, limit = 5) {
+  const words = (question.toLowerCase().match(/[a-z0-9]{3,}/g) || []).filter(
+    (word) => !assistantStopWords.has(word),
+  )
+  const pool = await repository.listDocuments(actor, { limit: 100 })
+  const scored = pool.items
+    .map((document) => {
+      const haystack = `${document.title} ${document.number} ${document.summary} ${document.department} ${document.type}`.toLowerCase()
+      const score = words.reduce((total, word) => total + (haystack.includes(word) ? 1 : 0), 0)
+      return { document, score }
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+  return scored.map(({ document }) => ({
+    id: document.id,
+    number: document.number,
+    title: document.title,
+    status: document.status,
+    department: document.department,
+    nextReview: document.nextReview,
+  }))
+}
 function publicUpload(upload) {
   return {
     id: upload.id,
@@ -619,7 +727,7 @@ function allowedMethods(route) {
   if (route.match(/\/documents\/[^/]+$/)) return 'GET, PATCH, DELETE'
   if (route.match(/\/admin\/users\/[^/]+$/)) return 'PATCH'
   if (route.match(/\/uploads\/[^/]+$/)) return 'DELETE'
-  return route.endsWith('/search') ? 'POST' : 'GET, POST'
+  return route.endsWith('/search') || route.endsWith('/assistant/ask') ? 'POST' : 'GET, POST'
 }
 function serveStatic(route, root, res) {
   const target = route === '/' ? 'index.html' : decodeURIComponent(route).replace(/^\/+/, '')

@@ -9,8 +9,8 @@
   },
   "scripts": {
     "dev": "vite",
-    "dev:api": "cross-env DOCAYA_ENV=development AUTH_MODE=development LOCAL_SQLITE_ENABLED=true node server/app/index.mjs",
-    "api": "node server/app/index.mjs",
+    "dev:api": "cross-env DOCAYA_ENV=development AUTH_MODE=development LOCAL_SQLITE_ENABLED=true node --env-file-if-exists=.env server/app/index.mjs",
+    "api": "node --env-file-if-exists=.env server/app/index.mjs",
     "start": "node server/app/index.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview",

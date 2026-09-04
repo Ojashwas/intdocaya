@@ -28,6 +28,7 @@ type Props = {
   locale: Locale
   onLocaleChange: (locale: Locale) => void
   onSearch: (query: string) => void
+  onAskDocaya: () => void
   children: ReactNode
 }
 
@@ -48,6 +49,7 @@ export function AppShell({
   locale,
   onLocaleChange,
   onSearch,
+  onAskDocaya,
   children,
 }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -182,7 +184,7 @@ export function AppShell({
             <kbd>Ctrl K</kbd>
           </form>
           <div className="topbar-actions">
-            <button className="square-button ai-button" aria-label="Ask Docaya">
+            <button className="square-button ai-button" aria-label="Ask Docaya" onClick={onAskDocaya}>
               <Bot size={19} />
             </button>
             <button

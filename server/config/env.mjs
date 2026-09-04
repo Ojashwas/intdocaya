@@ -57,6 +57,11 @@ export function loadConfig(overrides = {}) {
     sharePointSiteUrl: overrides.sharePointSiteUrl || process.env.SHAREPOINT_SITE_URL || '',
     sharePointDriveId: overrides.sharePointDriveId || process.env.SHAREPOINT_DRIVE_ID || '',
     managedIdentity: overrides.managedIdentity ?? process.env.SHAREPOINT_USE_MANAGED_IDENTITY === 'true',
+    openaiEndpoint: overrides.openaiEndpoint || process.env.AZURE_OPENAI_ENDPOINT || '',
+    openaiDeployment: overrides.openaiDeployment || process.env.AZURE_OPENAI_DEPLOYMENT || '',
+    openaiApiKey: overrides.openaiApiKey || process.env.AZURE_OPENAI_API_KEY || '',
+    openaiApiVersion:
+      overrides.openaiApiVersion || process.env.AZURE_OPENAI_API_VERSION || '2025-01-01-preview',
   }
 
   if (!Number.isInteger(config.port) || config.port < 1 || config.port > 65535)

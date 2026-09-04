@@ -21,8 +21,17 @@ const config = {
   uploadPath: join(root, 'uploads'),
 }
 const repository = new SqliteRepository(config.sqlitePath, { seed: true })
-const server = createDocayaServer({ config, repository })
+const mockAssistant = {
+  async chat(messages) {
+    const userMessage = messages.find((entry) => entry.role === 'user')?.content || ''
+    if (userMessage.includes('TRIGGER_UPSTREAM_FAILURE')) throw new Error('simulated upstream failure')
+    return 'Mock answer grounded in the supplied controlled-document context.'
+  },
+}
+const server = createDocayaServer({ config, repository, assistant: mockAssistant })
+const unconfiguredServer = createDocayaServer({ config, repository, assistant: null })
 let base = ''
+let unconfiguredBase = ''
 let admin = ''
 let viewer = ''
 
@@ -30,11 +39,15 @@ beforeAll(async () => {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   const address = server.address()
   base = `http://127.0.0.1:${address.port}`
+  await new Promise((resolve) => unconfiguredServer.listen(0, '127.0.0.1', resolve))
+  const unconfiguredAddress = unconfiguredServer.address()
+  unconfiguredBase = `http://127.0.0.1:${unconfiguredAddress.port}`
   admin = await issueDevelopmentToken(config)
   viewer = await issueDevelopmentToken(config, { sub: 'viewer', roles: ['viewer'] })
 })
 afterAll(async () => {
   await new Promise((resolve) => server.close(resolve))
+  await new Promise((resolve) => unconfiguredServer.close(resolve))
   repository.close()
   const resolved = resolve(root)
   if (resolved.startsWith(resolve(tmpdir()))) rmSync(resolved, { recursive: true, force: true })
@@ -46,6 +59,11 @@ const call = (path, token = admin, init = {}) =>
   })
 
 describe('v1 API contract', () => {
+  const callUnconfigured = (path, token = admin, init = {}) =>
+    fetch(`${unconfiguredBase}${path}`, {
+      ...init,
+      headers: { authorization: `Bearer ${token}`, ...init.headers },
+    })
   it('exposes minimal unauthenticated health', async () => {
     const response = await call('/health/live', '')
     expect(response.status).toBe(200)
@@ -210,5 +228,49 @@ describe('v1 API contract', () => {
       body: JSON.stringify({ status: 'suspended' }),
     })
     expect(response.status).toBe(409)
+  })
+  it('rejects unauthenticated assistant access', async () => {
+    const response = await call('/api/v1/assistant/ask', '', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ question: 'What is the Data Protection Policy status?' }),
+    })
+    expect(response.status).toBe(401)
+  })
+  it('validates the assistant question length', async () => {
+    const response = await call('/api/v1/assistant/ask', admin, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ question: 'a' }),
+    })
+    expect(response.status).toBe(422)
+  })
+  it('answers a question grounded in controlled-document context', async () => {
+    const response = await call('/api/v1/assistant/ask', viewer, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ question: 'What is the Document Control Procedure status?' }),
+    })
+    expect(response.status).toBe(200)
+    const payload = await response.json()
+    expect(payload.answer).toEqual(expect.any(String))
+    expect(Array.isArray(payload.references)).toBe(true)
+  })
+  it('returns a bad-gateway error when the upstream model fails', async () => {
+    const response = await call('/api/v1/assistant/ask', admin, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ question: 'TRIGGER_UPSTREAM_FAILURE for this question' }),
+    })
+    expect(response.status).toBe(502)
+  })
+  it('reports the assistant as unavailable when Azure OpenAI is not configured', async () => {
+    const response = await callUnconfigured('/api/v1/assistant/ask', admin, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ question: 'What is the Data Protection Policy status?' }),
+    })
+    expect(response.status).toBe(503)
+    expect((await response.json()).error.code).toBe('ASSISTANT_UNAVAILABLE')
   })
 })

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppShell } from './components/AppShell'
 import { AdminCenter } from './features/admin/AdminCenter'
+import { AskDocayaPanel } from './features/assistant/AskDocayaPanel'
 import { SignInPage } from './features/auth/SignInPage'
 import { DocumentCenter } from './features/documents/DocumentCenter'
 import { DocumentDetailModal } from './features/documents/DocumentDetailModal'
@@ -64,6 +65,7 @@ export default function App() {
   const [readiness, setReadiness] = useState<Readiness | null>(null)
   const [selected, setSelected] = useState<ControlledDocument | null>(null)
   const [registerOpen, setRegisterOpen] = useState(false)
+  const [assistantOpen, setAssistantOpen] = useState(false)
   const [locale, setLocale] = useState<Locale>(
     () => (localStorage.getItem('docaya_locale') as Locale) || 'en',
   )
@@ -286,6 +288,7 @@ export default function App() {
       locale={locale}
       onLocaleChange={setLocale}
       onSearch={handleSearch}
+      onAskDocaya={() => setAssistantOpen(true)}
     >
       <div className="sr-live" aria-live="polite">
         {message}
@@ -348,6 +351,7 @@ export default function App() {
         />
       )}
       {selected && <DocumentDetailModal document={selected} onClose={() => setSelected(null)} />}
+      {assistantOpen && <AskDocayaPanel onClose={() => setAssistantOpen(false)} />}
     </AppShell>
   )
 }

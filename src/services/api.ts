@@ -266,6 +266,20 @@ export async function searchDocuments(query: string, signal: AbortSignal) {
     )
   ).results
 }
+export type AssistantReference = {
+  id: string
+  number: string
+  title: string
+  status: string
+  department: string
+  nextReview: string
+}
+export async function askAssistant(question: string) {
+  return request<{ answer: string; references: AssistantReference[] }>('/assistant/ask', {
+    method: 'POST',
+    body: JSON.stringify({ question }),
+  })
+}
 
 function mapWorkflow(row: Record<string, unknown>): WorkflowTask {
   return {
