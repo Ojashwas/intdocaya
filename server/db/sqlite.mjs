@@ -84,12 +84,12 @@ export class SqliteRepository {
     const timestamp = now()
     this.db
       .prepare(
-        "INSERT OR IGNORE INTO workspaces(id,tenant_id,name,created_at) VALUES ('workspace-main','local-tenant','Ministry Records',?)",
+        "INSERT OR IGNORE INTO workspaces(id,tenant_id,name,created_at) VALUES ('workspace-main','local-tenant','Corporate Records',?)",
       )
       .run(timestamp)
     this.db
       .prepare(
-        "INSERT OR IGNORE INTO users(id,tenant_id,name,email,role,status,created_at) VALUES ('local-user','local-tenant','Khalid Al Mansoori','k.mansoori@moi.gov.ae','org-admin','active',?)",
+        "INSERT OR IGNORE INTO users(id,tenant_id,name,email,role,status,created_at) VALUES ('local-user','local-tenant','Khalid Al Mansoori','k.mansoori@docaya.local','org-admin','active',?)",
       )
       .run(timestamp)
     const count = this.db
@@ -111,7 +111,7 @@ export class SqliteRepository {
         'Policy & Strategy',
         'Corporate Governance',
         'English / Arabic',
-        'Controls the creation, review, approval, issue and retirement of ministry documents.',
+        'Controls the creation, review, approval, issue and retirement of organizational documents.',
         '7 years',
         4,
         '2027-01-10',
@@ -168,7 +168,7 @@ export class SqliteRepository {
         'Legal & Compliance',
         'Security & Compliance',
         'Arabic / English',
-        'Ministry-wide policy for the lawful and secure handling of personal information.',
+        'Organization-wide policy for the lawful and secure handling of personal information.',
         'Permanent',
         2,
         '2026-10-15',

@@ -8,7 +8,7 @@ import type { UserProfile } from '../../src/types'
 
 const user: UserProfile = {
   name: 'Khalid Al Mansoori',
-  email: 'k.mansoori@moi.gov.ae',
+  email: 'k.mansoori@docaya.local',
   initials: 'KM',
   role: 'Quality & Records Manager',
   department: 'Records & Governance',

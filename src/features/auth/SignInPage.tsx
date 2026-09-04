@@ -8,14 +8,14 @@ type Props = {
 
 const demoUser: UserProfile = {
   name: 'Khalid Al Mansoori',
-  email: 'k.mansoori@moi.gov.ae',
+  email: 'k.mansoori@docaya.local',
   initials: 'KM',
   role: 'Quality & Records Manager',
   department: 'Records & Governance',
 }
 
 export function SignInPage({ onSignIn }: Props) {
-  const [email, setEmail] = useState('k.mansoori@moi.gov.ae')
+  const [email, setEmail] = useState('k.mansoori@docaya.local')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [remember, setRemember] = useState(true)

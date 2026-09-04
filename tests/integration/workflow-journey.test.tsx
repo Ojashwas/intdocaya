@@ -30,7 +30,7 @@ beforeEach(() => {
       if (url.endsWith('/auth/development-token')) return json({ accessToken: 'development-test-token' })
       if (url.endsWith('/auth/me'))
         return json({
-          user: { name: 'Khalid Al Mansoori', email: 'k.mansoori@moi.gov.ae', roles: ['quality-manager'] },
+          user: { name: 'Khalid Al Mansoori', email: 'k.mansoori@docaya.local', roles: ['quality-manager'] },
         })
       if (url.includes('/documents?')) return json({ documents: initialDocuments })
       if (url.endsWith('/workflows'))
