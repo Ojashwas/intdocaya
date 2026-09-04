@@ -44,9 +44,7 @@ export async function developmentSignIn(): Promise<UserProfile> {
   if (!response.ok) throw new ApiError(response.status, payload)
   accessToken = payload.accessToken
   sessionStorage.setItem('docaya_access_token', accessToken)
-  const me = await request<{ user: { id: string; name: string; email: string; roles: string[] } }>(
-    '/auth/me',
-  )
+  const me = await request<{ user: { id: string; name: string; email: string; roles: string[] } }>('/auth/me')
   return {
     id: me.user.id,
     name: me.user.name,
@@ -232,10 +230,7 @@ export async function createAdminUser(input: {
     })
   ).user
 }
-export async function updateAdminUser(
-  id: string,
-  changes: Partial<Pick<AdminUser, 'role' | 'status'>>,
-) {
+export async function updateAdminUser(id: string, changes: Partial<Pick<AdminUser, 'role' | 'status'>>) {
   return (
     await request<{ user: AdminUser }>(`/admin/users/${encodeURIComponent(id)}`, {
       method: 'PATCH',

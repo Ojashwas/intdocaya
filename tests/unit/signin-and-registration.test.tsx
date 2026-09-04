@@ -44,7 +44,13 @@ describe('controlled document registration', () => {
       target: { value: 'Ministerial Records Procedure' },
     })
     fireEvent.change(screen.getByLabelText(/upload document/i), {
-      target: { files: [new File(['document'], 'records-procedure.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })] },
+      target: {
+        files: [
+          new File(['document'], 'records-procedure.docx', {
+            type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          }),
+        ],
+      },
     })
     fireEvent.change(screen.getByLabelText(/document type/i), { target: { value: 'Procedure' } })
     fireEvent.change(screen.getByLabelText(/library/i), { target: { value: 'Corporate Governance' } })

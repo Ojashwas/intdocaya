@@ -105,7 +105,9 @@ export function createDocayaServer({
             checkDependency(events).then((result) => ['events', result]),
           ]),
         )
-        const ready = Object.values(checks).every((check) => check.status === 'ok' || check.status === 'disabled')
+        const ready = Object.values(checks).every(
+          (check) => check.status === 'ok' || check.status === 'disabled',
+        )
         return sendJson(res, ready ? 200 : 503, {
           status: ready ? 'ready' : 'not_ready',
           timestamp: new Date().toISOString(),
@@ -401,7 +403,11 @@ export function createDocayaServer({
                 message: error instanceof Error ? error.message : String(error),
               }),
             )
-            throw new HttpError(502, 'ASSISTANT_UPSTREAM_ERROR', 'The AI assistant could not generate a response.')
+            throw new HttpError(
+              502,
+              'ASSISTANT_UPSTREAM_ERROR',
+              'The AI assistant could not generate a response.',
+            )
           }
           await audit(repository, req, actor, 'assistant.ask', 'assistant', null, 'success', {
             questionLength: question.length,
@@ -555,7 +561,10 @@ export function createDocayaServer({
               throw new HttpError(409, 'DUPLICATE_EMAIL', 'A user with this email already exists.')
             throw error
           }
-          await audit(repository, req, actor, 'admin.user.create', 'user', user.id, 'success', { role, status })
+          await audit(repository, req, actor, 'admin.user.create', 'user', user.id, 'success', {
+            role,
+            status,
+          })
           return sendJson(res, 201, { user })
         }
         const adminUserMatch = route.match(/^\/api\/v1\/admin\/users\/([^/]+)$/)
@@ -565,11 +574,21 @@ export function createDocayaServer({
           const body = await readJson(req, config.bodyLimit)
           const changes = {}
           if (body.role !== undefined) {
-            assert(assignableRoles.includes(body.role), 422, 'VALIDATION_ERROR', 'The selected role is invalid.')
+            assert(
+              assignableRoles.includes(body.role),
+              422,
+              'VALIDATION_ERROR',
+              'The selected role is invalid.',
+            )
             changes.role = body.role
           }
           if (body.status !== undefined) {
-            assert(userStatuses.includes(body.status), 422, 'VALIDATION_ERROR', 'The selected status is invalid.')
+            assert(
+              userStatuses.includes(body.status),
+              422,
+              'VALIDATION_ERROR',
+              'The selected status is invalid.',
+            )
             assert(
               id !== actor.id || body.status === 'active',
               409,
@@ -685,7 +704,8 @@ async function findRelevantDocuments(repository, actor, question, limit = 5) {
   const pool = await repository.listDocuments(actor, { limit: 100 })
   const scored = pool.items
     .map((document) => {
-      const haystack = `${document.title} ${document.number} ${document.summary} ${document.department} ${document.type}`.toLowerCase()
+      const haystack =
+        `${document.title} ${document.number} ${document.summary} ${document.department} ${document.type}`.toLowerCase()
       const score = words.reduce((total, word) => total + (haystack.includes(word) ? 1 : 0), 0)
       return { document, score }
     })

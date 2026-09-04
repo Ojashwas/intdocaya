@@ -524,9 +524,7 @@ export class SqliteRepository {
 
   getAdminUser(actor, id) {
     return this.db
-      .prepare(
-        'SELECT id,name,email,role,status,created_at,updated_at FROM users WHERE id=? AND tenant_id=?',
-      )
+      .prepare('SELECT id,name,email,role,status,created_at,updated_at FROM users WHERE id=? AND tenant_id=?')
       .get(id, actor.tenantId)
   }
 
@@ -536,16 +534,7 @@ export class SqliteRepository {
       .prepare(
         'INSERT INTO users(id,tenant_id,name,email,role,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)',
       )
-      .run(
-        input.id,
-        actor.tenantId,
-        input.name,
-        input.email,
-        input.role,
-        input.status,
-        timestamp,
-        timestamp,
-      )
+      .run(input.id, actor.tenantId, input.name, input.email, input.role, input.status, timestamp, timestamp)
     return this.getAdminUser(actor, input.id)
   }
 

@@ -54,7 +54,9 @@ export function SignInPage({ onSignIn }: Props) {
             <br />
             <span>One trusted home.</span>
           </h1>
-          <p>Governed records, clear approvals and complete traceability across every organizational sector.</p>
+          <p>
+            Governed records, clear approvals and complete traceability across every organizational sector.
+          </p>
         </div>
         <div className="story-assurance">
           <p>
@@ -133,7 +135,9 @@ export function SignInPage({ onSignIn }: Props) {
             </label>
             <button
               type="button"
-              onClick={() => setError('Password reset is managed through the organizational identity portal.')}
+              onClick={() =>
+                setError('Password reset is managed through the organizational identity portal.')
+              }
             >
               Forgot password?
             </button>

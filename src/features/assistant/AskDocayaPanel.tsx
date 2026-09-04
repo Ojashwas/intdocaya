@@ -71,8 +71,8 @@ export function AskDocayaPanel({ onClose }: { onClose: () => void }) {
         <div className="assistant-body" ref={listRef}>
           {!exchanges.length && (
             <p className="empty-copy">
-              Ask about a controlled document, its status, owner, or upcoming review — for example, “what is the
-              status of the Data Protection Policy?”
+              Ask about a controlled document, its status, owner, or upcoming review — for example, “what is
+              the status of the Data Protection Policy?”
             </p>
           )}
           {exchanges.map((exchange) => (

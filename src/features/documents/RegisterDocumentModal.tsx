@@ -38,7 +38,10 @@ export function RegisterDocumentModal({ user, onClose, onSave }: Props) {
     setForm((current) => ({ ...current, [key]: value }))
 
   const validateStep = () => {
-    if (step === 0 && (!selectedFile || !form.title.trim() || !form.type || !form.library || !form.department))
+    if (
+      step === 0 &&
+      (!selectedFile || !form.title.trim() || !form.type || !form.library || !form.department)
+    )
       return 'Complete all required metadata fields.'
     if (step === 1 && (!form.classification || !form.retention || !form.nextReview))
       return 'Complete the classification and control fields.'

@@ -326,9 +326,7 @@
       "patch": {
         "summary": "Update a tenant user's role or lifecycle status",
         "security": [{ "entraBearer": [] }],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
-        ],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
         "responses": {
           "200": { "description": "Updated" },
           "default": { "$ref": "#/components/responses/Error" }

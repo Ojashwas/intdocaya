@@ -10,13 +10,11 @@ const { RedisCacheAdapter } = await import('../services/redis-cache.mjs')
 const { ServiceBusRestPublisher } = await import('../services/service-bus.mjs')
 const { AzureOpenAiAdapter } = await import('../services/azure-openai.mjs')
 const repository = await createRepository(config)
-const search = config.searchEndpoint || config.searchIndex || config.searchApiKey
-  ? new AzureSearchAdapter(config)
-  : null
+const search =
+  config.searchEndpoint || config.searchIndex || config.searchApiKey ? new AzureSearchAdapter(config) : null
 const cache = config.redisUrl ? new RedisCacheAdapter(config.redisUrl, config.redisToken) : null
-const events = config.serviceBusNamespace || config.serviceBusTopic
-  ? new ServiceBusRestPublisher(config)
-  : null
+const events =
+  config.serviceBusNamespace || config.serviceBusTopic ? new ServiceBusRestPublisher(config) : null
 const assistant =
   config.openaiEndpoint && config.openaiDeployment && config.openaiApiKey
     ? new AzureOpenAiAdapter(config)
