@@ -8,10 +8,12 @@ import { RegisterDocumentModal } from './features/documents/RegisterDocumentModa
 import { HomePage } from './features/home/HomePage'
 import { NotificationCenter, type NotificationItem } from './features/notifications/NotificationCenter'
 import {
+  createAdminUser,
   decideWorkflow,
   developmentSignIn,
   getAdminSettings,
   getOverview,
+  getReadiness,
   listAdminUsers,
   listDocuments,
   listNotifications,
@@ -23,10 +25,11 @@ import {
   restoreSession,
   searchDocuments,
   signOut,
+  updateAdminUser,
   updateDocument,
   updateAdminSettings,
 } from './services/api'
-import type { AdminUser } from './services/api'
+import type { AdminUser, Readiness } from './services/api'
 import type {
   ActivityItem,
   AppPage,
@@ -58,6 +61,7 @@ export default function App() {
     null,
   )
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
+  const [readiness, setReadiness] = useState<Readiness | null>(null)
   const [selected, setSelected] = useState<ControlledDocument | null>(null)
   const [registerOpen, setRegisterOpen] = useState(false)
   const [locale, setLocale] = useState<Locale>(
@@ -122,14 +126,16 @@ export default function App() {
   }
   const refreshOverview = async () => {
     try {
-      const [nextOverview, settings, users] = await Promise.all([
+      const [nextOverview, settings, users, health] = await Promise.all([
         getOverview(),
         getAdminSettings(),
         listAdminUsers(),
+        getReadiness(),
       ])
       setOverview(nextOverview)
       setAdminSettings(settings)
       setAdminUsers(users)
+      setReadiness(health)
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : 'Admin metrics could not be loaded.')
     }
@@ -193,6 +199,26 @@ export default function App() {
   const handleAdminSettings = async (changes: Parameters<typeof updateAdminSettings>[0]) => {
     setAdminSettings(await updateAdminSettings(changes))
     setMessage('Administration settings saved.')
+  }
+  const handleInviteUser = async (input: { name: string; email: string; role: string }) => {
+    try {
+      const created = await createAdminUser(input)
+      setAdminUsers((rows) => [...rows, created].sort((a, b) => a.name.localeCompare(b.name)))
+      setMessage(`${created.name} was invited to the workspace.`)
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : 'The user could not be invited.')
+      throw problem
+    }
+  }
+  const handleUpdateUser = async (id: string, changes: Partial<Pick<AdminUser, 'role' | 'status'>>) => {
+    try {
+      const updated = await updateAdminUser(id, changes)
+      setAdminUsers((rows) => rows.map((row) => (row.id === updated.id ? updated : row)))
+      setMessage(`${updated.name} was updated.`)
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : 'The user could not be updated.')
+      throw problem
+    }
   }
   const handleSearch = useCallback(
     async (query: string) => {
@@ -305,7 +331,11 @@ export default function App() {
           overview={overview}
           settings={adminSettings}
           users={adminUsers}
+          readiness={readiness}
+          currentUserId={user?.id}
           onSaveSettings={handleAdminSettings}
+          onInviteUser={handleInviteUser}
+          onUpdateUser={handleUpdateUser}
         />
       )}
       {registerOpen && (

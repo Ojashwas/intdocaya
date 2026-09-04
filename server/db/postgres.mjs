@@ -369,6 +369,45 @@ export class PostgresRepository {
         ).rows,
     )
   }
+  async getAdminUser(actor, id) {
+    return this.tenant(
+      actor,
+      async (client) =>
+        (
+          await client.query(
+            'SELECT id,name,email,role,status,created_at,updated_at FROM users WHERE id=$1 AND tenant_id=$2',
+            [id, actor.tenantId],
+          )
+        ).rows[0] || null,
+    )
+  }
+  async createAdminUser(actor, input) {
+    return this.tenant(actor, async (client) => {
+      const timestamp = now()
+      const result = await client.query(
+        `INSERT INTO users(id,tenant_id,name,email,role,status,created_at,updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id,name,email,role,status,created_at,updated_at`,
+        [input.id, actor.tenantId, input.name, input.email, input.role, input.status, timestamp, timestamp],
+      )
+      return result.rows[0]
+    })
+  }
+  async updateAdminUser(actor, id, changes) {
+    const mapping = { role: 'role', status: 'status' }
+    const entries = Object.entries(changes).filter(([key]) => mapping[key])
+    if (!entries.length) return null
+    return this.tenant(actor, async (client) => {
+      const values = entries.map(([, value]) => value)
+      values.push(now(), id, actor.tenantId)
+      const result = await client.query(
+        `UPDATE users SET ${entries.map(([key], index) => `${mapping[key]}=$${index + 1}`).join(',')},updated_at=$${entries.length + 1}
+         WHERE id=$${entries.length + 2} AND tenant_id=$${entries.length + 3}
+         RETURNING id,name,email,role,status,created_at,updated_at`,
+        values,
+      )
+      return result.rows[0] || null
+    })
+  }
   async getSettings(actor) {
     return this.tenant(actor, async (client) => {
       const row = (await client.query('SELECT * FROM tenant_settings WHERE tenant_id=$1', [actor.tenantId]))

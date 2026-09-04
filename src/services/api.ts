@@ -44,8 +44,11 @@ export async function developmentSignIn(): Promise<UserProfile> {
   if (!response.ok) throw new ApiError(response.status, payload)
   accessToken = payload.accessToken
   sessionStorage.setItem('docaya_access_token', accessToken)
-  const me = await request<{ user: { name: string; email: string; roles: string[] } }>('/auth/me')
+  const me = await request<{ user: { id: string; name: string; email: string; roles: string[] } }>(
+    '/auth/me',
+  )
   return {
+    id: me.user.id,
     name: me.user.name,
     email: me.user.email,
     initials: me.user.name
@@ -66,8 +69,11 @@ export function signOut() {
 export async function restoreSession() {
   if (!accessToken) return null
   try {
-    const me = await request<{ user: { name: string; email: string; roles: string[] } }>('/auth/me')
+    const me = await request<{ user: { id: string; name: string; email: string; roles: string[] } }>(
+      '/auth/me',
+    )
     return {
+      id: me.user.id,
       name: me.user.name,
       email: me.user.email,
       initials: me.user.name
@@ -212,6 +218,44 @@ export type AdminUser = {
 }
 export async function listAdminUsers() {
   return (await request<{ users: AdminUser[] }>('/admin/users')).users
+}
+export async function createAdminUser(input: {
+  name: string
+  email: string
+  role: string
+  status?: AdminUser['status']
+}) {
+  return (
+    await request<{ user: AdminUser }>('/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+  ).user
+}
+export async function updateAdminUser(
+  id: string,
+  changes: Partial<Pick<AdminUser, 'role' | 'status'>>,
+) {
+  return (
+    await request<{ user: AdminUser }>(`/admin/users/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(changes),
+    })
+  ).user
+}
+export type ReadinessCheck = { status: string; error?: string }
+export type Readiness = {
+  status: 'ready' | 'not_ready'
+  timestamp: string
+  checks: Record<string, ReadinessCheck>
+}
+export async function getReadiness(): Promise<Readiness | null> {
+  try {
+    const response = await fetch('/health/ready')
+    return (await response.json()) as Readiness
+  } catch {
+    return null
+  }
 }
 export async function searchDocuments(query: string, signal: AbortSignal) {
   return (

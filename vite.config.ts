@@ -6,6 +6,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': process.env.DOCAYA_API_PROXY || 'http://localhost:8787',
+      '/health': process.env.DOCAYA_API_PROXY || 'http://localhost:8787',
     },
   },
 })

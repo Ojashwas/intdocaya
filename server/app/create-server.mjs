@@ -11,6 +11,17 @@ import { UploadService } from '../services/uploads.mjs'
 const documentStatuses = ['Draft', 'Under Review', 'Under Approval', 'Published', 'Superseded', 'Archived']
 const classifications = ['Public', 'Internal', 'Confidential', 'Restricted']
 const workflowDecisions = ['Approved', 'Changes requested', 'Rejected']
+const assignableRoles = [
+  'org-admin',
+  'workspace-admin',
+  'content-manager',
+  'contributor',
+  'viewer',
+  'guest',
+  'auditor',
+]
+const userStatuses = ['invited', 'active', 'suspended', 'deprovisioned']
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const contentTypes = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -471,6 +482,55 @@ export function createDocayaServer({ config, repository, search = null, cache = 
           authorize(actor, 'admin:read')
           return sendJson(res, 200, { users: await repository.listAdminUsers(actor) })
         }
+        if (route === '/api/v1/admin/users' && req.method === 'POST') {
+          authorize(actor, 'admin:write')
+          const body = await readJson(req, config.bodyLimit)
+          const name = cleanText(body.name, 'name', { max: 120 })
+          const email = cleanText(body.email, 'email', { max: 200 }).toLowerCase()
+          assert(emailPattern.test(email), 422, 'VALIDATION_ERROR', 'A valid email address is required.')
+          const role = body.role || 'viewer'
+          assert(assignableRoles.includes(role), 422, 'VALIDATION_ERROR', 'The selected role is invalid.')
+          const status = body.status || 'invited'
+          assert(userStatuses.includes(status), 422, 'VALIDATION_ERROR', 'The selected status is invalid.')
+          let user
+          try {
+            user = await repository.createAdminUser(actor, { id: uuid('user'), name, email, role, status })
+          } catch (error) {
+            if (error?.code === '23505' || /unique/i.test(error?.message || ''))
+              throw new HttpError(409, 'DUPLICATE_EMAIL', 'A user with this email already exists.')
+            throw error
+          }
+          await audit(repository, req, actor, 'admin.user.create', 'user', user.id, 'success', { role, status })
+          return sendJson(res, 201, { user })
+        }
+        const adminUserMatch = route.match(/^\/api\/v1\/admin\/users\/([^/]+)$/)
+        if (adminUserMatch && req.method === 'PATCH') {
+          authorize(actor, 'admin:write')
+          const id = decodeURIComponent(adminUserMatch[1])
+          const body = await readJson(req, config.bodyLimit)
+          const changes = {}
+          if (body.role !== undefined) {
+            assert(assignableRoles.includes(body.role), 422, 'VALIDATION_ERROR', 'The selected role is invalid.')
+            changes.role = body.role
+          }
+          if (body.status !== undefined) {
+            assert(userStatuses.includes(body.status), 422, 'VALIDATION_ERROR', 'The selected status is invalid.')
+            assert(
+              id !== actor.id || body.status === 'active',
+              409,
+              'SELF_ACTION_DENIED',
+              'You cannot suspend or deprovision your own account.',
+            )
+            changes.status = body.status
+          }
+          assert(Object.keys(changes).length > 0, 422, 'VALIDATION_ERROR', 'No valid fields were supplied.')
+          const user = await repository.updateAdminUser(actor, id, changes)
+          assert(user, 404, 'NOT_FOUND', 'User not found.')
+          await audit(repository, req, actor, 'admin.user.update', 'user', id, 'success', {
+            fields: Object.keys(changes),
+          })
+          return sendJson(res, 200, { user })
+        }
         if (route === '/api/v1/admin/settings' && req.method === 'GET') {
           authorize(actor, 'admin:read')
           return sendJson(res, 200, { settings: await repository.getSettings(actor) })
@@ -557,6 +617,7 @@ function allowedMethods(route) {
   )
     return 'POST'
   if (route.match(/\/documents\/[^/]+$/)) return 'GET, PATCH, DELETE'
+  if (route.match(/\/admin\/users\/[^/]+$/)) return 'PATCH'
   if (route.match(/\/uploads\/[^/]+$/)) return 'DELETE'
   return route.endsWith('/search') ? 'POST' : 'GET, POST'
 }

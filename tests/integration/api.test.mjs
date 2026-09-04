@@ -51,6 +51,13 @@ describe('v1 API contract', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual(expect.objectContaining({ status: 'ok' }))
   })
+  it('reports readiness with a working database health check', async () => {
+    const response = await call('/health/ready', '')
+    expect(response.status).toBe(200)
+    const payload = await response.json()
+    expect(payload.status).toBe('ready')
+    expect(payload.checks.database).toMatchObject({ status: 'ok' })
+  })
   it('rejects unauthenticated business access with request id', async () => {
     const response = await call('/api/v1/documents', '')
     expect(response.status).toBe(401)
@@ -137,5 +144,71 @@ describe('v1 API contract', () => {
   it('blocks a disallowed origin', async () => {
     const response = await call('/api/v1/documents', admin, { headers: { origin: 'https://evil.example' } })
     expect(response.status).toBe(403)
+  })
+  it('lists admin users with lifecycle timestamps', async () => {
+    const response = await call('/api/v1/admin/users')
+    expect(response.status).toBe(200)
+    const payload = await response.json()
+    expect(payload.users.length).toBeGreaterThan(0)
+    expect(payload.users[0]).toMatchObject({ id: expect.any(String), created_at: expect.any(String) })
+  })
+  it('rejects admin user management for non-admin roles', async () => {
+    const response = await call('/api/v1/admin/users', viewer, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Nope', email: 'nope@docaya.local', role: 'viewer' }),
+    })
+    expect(response.status).toBe(403)
+  })
+  it('validates new admin user input', async () => {
+    const response = await call('/api/v1/admin/users', admin, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'A', email: 'not-an-email', role: 'super-admin' }),
+    })
+    expect(response.status).toBe(422)
+  })
+  it('creates, lists and updates an admin user end to end', async () => {
+    const created = await call('/api/v1/admin/users', admin, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Test Invitee', email: 'invitee@docaya.local', role: 'viewer' }),
+    })
+    expect(created.status).toBe(201)
+    const { user } = await created.json()
+    expect(user).toMatchObject({ name: 'Test Invitee', role: 'viewer', status: 'invited' })
+
+    const duplicate = await call('/api/v1/admin/users', admin, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Test Invitee', email: 'invitee@docaya.local', role: 'viewer' }),
+    })
+    expect(duplicate.status).toBe(409)
+
+    const updated = await call(`/api/v1/admin/users/${user.id}`, admin, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ role: 'content-manager', status: 'active' }),
+    })
+    expect(updated.status).toBe(200)
+    const updatedBody = await updated.json()
+    expect(updatedBody.user).toMatchObject({ role: 'content-manager', status: 'active' })
+    expect(updatedBody.user.updated_at).toEqual(expect.any(String))
+
+    const missing = await call('/api/v1/admin/users/missing-user', admin, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ role: 'viewer' }),
+    })
+    expect(missing.status).toBe(404)
+  })
+  it('prevents an admin from suspending or deprovisioning their own account', async () => {
+    const me = await (await call('/api/v1/auth/me')).json()
+    const response = await call(`/api/v1/admin/users/${me.user.id}`, admin, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ status: 'suspended' }),
+    })
+    expect(response.status).toBe(409)
   })
 })

@@ -74,6 +74,8 @@ a {
 
 .gold-button,
 .secondary-button,
+.primary-button,
+.danger-button,
 .sso-button,
 .uaepass-button {
   min-height: 42px;
@@ -87,13 +89,15 @@ a {
   font-weight: 750;
   font-size: 0.82rem;
 }
-.gold-button {
+.gold-button,
+.primary-button {
   border-color: var(--moi-gold-700);
   background: var(--moi-gold-700);
   color: white;
   box-shadow: 0 8px 20px rgba(146, 120, 42, 0.18);
 }
-.gold-button:hover {
+.gold-button:hover,
+.primary-button:hover {
   background: var(--moi-gold-800);
 }
 .gold-button.wide {
@@ -106,6 +110,14 @@ a {
 }
 .secondary-button:hover {
   background: var(--surface-soft);
+}
+.danger-button {
+  border-color: var(--moi-red-soft);
+  background: white;
+  color: var(--moi-red);
+}
+.danger-button:hover {
+  background: var(--moi-red-soft);
 }
 
 .form-message {

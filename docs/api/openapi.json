@@ -303,6 +303,55 @@
           "default": { "$ref": "#/components/responses/Error" }
         }
       }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "summary": "List tenant users",
+        "security": [{ "entraBearer": [] }],
+        "responses": {
+          "200": { "description": "Users" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "post": {
+        "summary": "Invite a tenant user",
+        "security": [{ "entraBearer": [] }],
+        "responses": {
+          "201": { "description": "Created" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/v1/admin/users/{id}": {
+      "patch": {
+        "summary": "Update a tenant user's role or lifecycle status",
+        "security": [{ "entraBearer": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Updated" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/v1/admin/settings": {
+      "get": {
+        "summary": "Read tenant governance settings",
+        "security": [{ "entraBearer": [] }],
+        "responses": {
+          "200": { "description": "Settings" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "patch": {
+        "summary": "Update tenant governance settings",
+        "security": [{ "entraBearer": [] }],
+        "responses": {
+          "200": { "description": "Updated" },
+          "default": { "$ref": "#/components/responses/Error" }
+        }
+      }
     }
   }
 }

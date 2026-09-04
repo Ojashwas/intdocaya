@@ -56,6 +56,11 @@ export class SqliteRepository {
     if (seed) this.seed()
   }
 
+  async healthCheck() {
+    this.db.prepare('SELECT 1').get()
+    return { status: 'ok', provider: 'sqlite' }
+  }
+
   migrate() {
     this.db.exec(
       'CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)',
@@ -89,9 +94,9 @@ export class SqliteRepository {
       .run(timestamp)
     this.db
       .prepare(
-        "INSERT OR IGNORE INTO users(id,tenant_id,name,email,role,status,created_at) VALUES ('local-user','local-tenant','Khalid Al Mansoori','k.mansoori@docaya.local','org-admin','active',?)",
+        "INSERT OR IGNORE INTO users(id,tenant_id,name,email,role,status,created_at,updated_at) VALUES ('local-user','local-tenant','Khalid Al Mansoori','k.mansoori@docaya.local','org-admin','active',?,?)",
       )
-      .run(timestamp)
+      .run(timestamp, timestamp)
     const count = this.db
       .prepare("SELECT COUNT(*) count FROM documents WHERE tenant_id='local-tenant'")
       .get().count
@@ -515,6 +520,45 @@ export class SqliteRepository {
         'SELECT id,name,email,role,status,created_at,updated_at FROM users WHERE tenant_id=? ORDER BY name',
       )
       .all(actor.tenantId)
+  }
+
+  getAdminUser(actor, id) {
+    return this.db
+      .prepare(
+        'SELECT id,name,email,role,status,created_at,updated_at FROM users WHERE id=? AND tenant_id=?',
+      )
+      .get(id, actor.tenantId)
+  }
+
+  createAdminUser(actor, input) {
+    const timestamp = now()
+    this.db
+      .prepare(
+        'INSERT INTO users(id,tenant_id,name,email,role,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)',
+      )
+      .run(
+        input.id,
+        actor.tenantId,
+        input.name,
+        input.email,
+        input.role,
+        input.status,
+        timestamp,
+        timestamp,
+      )
+    return this.getAdminUser(actor, input.id)
+  }
+
+  updateAdminUser(actor, id, changes) {
+    const mapping = { role: 'role', status: 'status' }
+    const entries = Object.entries(changes).filter(([key]) => mapping[key])
+    if (!entries.length) return null
+    const result = this.db
+      .prepare(
+        `UPDATE users SET ${entries.map(([key]) => `${mapping[key]}=?`).join(',')},updated_at=? WHERE id=? AND tenant_id=?`,
+      )
+      .run(...entries.map(([, value]) => value), now(), id, actor.tenantId)
+    return result.changes ? this.getAdminUser(actor, id) : null
   }
 
   getSettings(actor) {

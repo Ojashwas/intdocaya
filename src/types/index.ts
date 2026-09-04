@@ -3,6 +3,7 @@ export type AppPage = 'home' | 'documents' | 'workflows' | 'notifications' | 'ad
 export type Locale = 'en' | 'ar'
 
 export type UserProfile = {
+  id?: string
   name: string
   email: string
   initials: string
